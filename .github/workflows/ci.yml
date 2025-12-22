@@ -1,31 +1,43 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   tests:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      # Step 1: Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: Install
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Install this package in editable mode so tests can import `mercury`
           python -m pip install -e .
-          # Install test dependencies if present (optional)
           python -m pip install -r requirements.txt || true
+
+      # Step 4: Validate plugin manifests
       - name: Validate plugin manifests
-        run: |
-          python tools/check_manifests.py
+        run: python tools/check_manifests.py
+
+      # Step 5: Run tests natively
       - name: Run tests
+        run: pytest -q
+
+      # Step 6: Optional: Run tests inside Docker sandbox
+      - name: Run tests inside Docker sandbox
         run: |
-          pytest -q
-      - name: Run tests inside Docker sandbox (optional)
-        run: |
-          # Build the sandbox image and run tests inside it to get stronger isolation
           docker build -t mercury-sandbox:ci sandbox/
           docker run --rm -v "${{ github.workspace }}:/app" mercury-sandbox:ci /bin/bash -c "cd /app && python -m pip install pytest && pytest -q"

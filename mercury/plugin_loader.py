@@ -1,54 +1,43 @@
-"""Plugin loader for Mercury — safe, metadata-driven discovery.
-
-Plugins live under `mercury_plugins/<plugin_name>/` and must include a
-`manifest.json` with required fields and a `plugin.py` file exposing a
-`run()` entrypoint for demonstration purposes.
-"""
-import json
 import os
-from typing import Dict, List
+import json
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-PLUGINS_DIR = os.path.join(ROOT, "mercury_plugins")
-
-
-class PluginError(Exception):
-    pass
-
-
-def discover_plugins() -> List[Dict]:
-    """Return a list of plugin metadata dicts discovered under `mercury_plugins`.
-
-    Each plugin metadata contains keys: name, path, manifest (dict).
+def discover_plugins(base_dir=None):
     """
+    Discover all plugins in the mercury_plugins directory.
+    Returns a list of dicts with keys: name, path
+    """
+    if base_dir is None:
+        # Default to repository root + mercury_plugins
+        base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mercury_plugins")
+
     plugins = []
-    if not os.path.isdir(PLUGINS_DIR):
+    if not os.path.isdir(base_dir):
         return plugins
 
-    for name in sorted(os.listdir(PLUGINS_DIR)):
-        pdir = os.path.join(PLUGINS_DIR, name)
-        if not os.path.isdir(pdir):
-            continue
-        manifest_path = os.path.join(pdir, "manifest.json")
-        if not os.path.isfile(manifest_path):
-            continue
-        try:
-            with open(manifest_path, "r", encoding="utf-8") as f:
-                manifest = json.load(f)
-        except Exception as e:
-            # skip malformed manifests
-            continue
-        # basic validation
-        if "name" not in manifest or "version" not in manifest:
-            continue
-        plugins.append({"name": manifest.get("name"), "path": pdir, "manifest": manifest})
+    for name in os.listdir(base_dir):
+        plugin_path = os.path.join(base_dir, name)
+        if os.path.isdir(plugin_path):
+            manifest_path = os.path.join(plugin_path, "manifest.json")
+            if os.path.isfile(manifest_path):
+                try:
+                    with open(manifest_path, "r", encoding="utf-8") as f:
+                        manifest = json.load(f)
+                    plugin_info = {
+                        "name": manifest.get("name", name),
+                        "path": plugin_path,
+                        "manifest": manifest
+                    }
+                    plugins.append(plugin_info)
+                except Exception as e:
+                    print(f"Failed to load manifest for {name}: {e}")
     return plugins
 
-
-def load_manifest(plugin_path: str) -> Dict:
-    manifest_path = os.path.join(plugin_path, "manifest.json")
-    if not os.path.isfile(manifest_path):
-        raise PluginError("manifest.json not found")
-    with open(manifest_path, "r", encoding="utf-8") as f:
-        manifest = json.load(f)
-    return manifest
+def load_manifest(plugin_path):
+    """
+    Load the manifest.json for a given plugin path.
+    """
+    manifest_file = os.path.join(plugin_path, "manifest.json")
+    if not os.path.isfile(manifest_file):
+        raise FileNotFoundError(f"Manifest not found in {plugin_path}")
+    with open(manifest_file, "r", encoding="utf-8") as f:
+        return json.load(f)
