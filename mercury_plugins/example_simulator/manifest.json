@@ -1,9 +1,9 @@
 {
   "name": "example_simulator",
+  "description": "A safe example simulator plugin for Mercury",
   "version": "0.1.0",
-  "description": "A safe educational plugin demonstrating local-only network demos and simulated device info.",
-  "author": "voltsparx",
-  "network_policy": "local-only",
-  "usage": "Run inside the Mercury sandbox to demonstrate safe local-only behavior (prints simulated device info and attempts local connect to 127.0.0.1).",
-  "responsible_use": "This plugin is for authorized testing and learning only. Do not use against systems without permission."
+  "author": "Voltsparx",
+  "entry_point": "plugin.py",
+  "tags": ["example", "simulator", "safe"],
+  "network_policy": "local-only"
 }
