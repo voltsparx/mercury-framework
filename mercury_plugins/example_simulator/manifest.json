@@ -1,9 +1,9 @@
 {
   "name": "example_simulator",
-  "version": "1.0.0",
   "author": "Voltsparx",
   "description": "A safe example simulator plugin for Mercury",
   "entry_point": "plugin.py",
+  "version": "0.1.0",
   "network_policy": "local-only",
-  "responsible_use": "This plugin is safe and intended for educational/testing purposes only."
+  "responsible_use": "For educational and safe testing purposes only"
 }
