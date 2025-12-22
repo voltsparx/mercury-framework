@@ -15,9 +15,7 @@ def test_example_plugin_lifecycle():
     plugins = discover_plugins()
     p = next((p for p in plugins if p['name'] == 'example_simulator'), None)
     assert p is not None
-
-    # Use os.path.join for cross-platform compatibility
-    plugin_py = os.path.join(p['path'], 'plugin.py')
+    plugin_py = p['path'] + '\\plugin.py'
 
     # run setup
     rc, out, err = run_cmd(plugin_py, ['--setup'])
