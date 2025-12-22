@@ -1,16 +1,23 @@
-Release notes for Mercury Framework
+# Mercury Framework – Lite Release
 
-This release packages the Mercury Framework safe educational scaffold.
+Mercury is an educational, **safe-by-design** security simulation framework.
 
-What's included:
-- Core `mercury` package with console, sandbox, plugin loader, and simulated devices.
-- `mercury_plugins` directory with templates and example plugins.
-- Packaging scripts:
-  - `scripts/build_windows_installer.ps1` (zip + install helper, optional SFX)
-  - `scripts/build_msi.ps1` (WiX-based MSI builder; requires WiX Toolset)
-  - `scripts/prepare_unix_packages.py` (source tarball + PKGBUILD, optional .deb on Linux)
-  - `scripts/create_release_zip.py` (creates `dist/mercury-framework-release.zip`)
+## Included
+- Core Mercury engine
+- Safe simulation modules
+- Plugin system
+- Example plugins
+- CLI runner
 
-Notes:
-- This repository intentionally contains only benign simulation code and demos.
-- The MSI builder assumes Python is installed on target machines; bundling Python would require extra steps.
+## Excluded
+- Tests
+- CI configs
+- Build scripts
+- Developer-only tooling
+
+## Network Policy
+All plugins enforce **local-only** execution.
+
+## Disclaimer
+This project is for **education and defensive research only**.
+No real exploitation code is included.
