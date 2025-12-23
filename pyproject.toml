@@ -1,15 +1,18 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "mercury-framework"
 version = "0.1.0"
-description = "Mercury — an educational, safe framework for security research and simulation (harmless stubs only)."
-authors = [ { name = "voltsparx", email = "voltsparx@gmail.com" } ]
-readme = "README.md"
-license = { text = "MIT" }
-requires-python = ">=3.8"
+description = "Mercury security framework"
+requires-python = ">=3.10"
+license = "MIT"
 
-[project.urls]
-
-
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+[tool.setuptools]
+packages = [
+    "mercury",
+    "mercury_plugins",
+    "detection",
+    "payload_descriptors"
+]
