@@ -1,6 +1,6 @@
 Containerized sandbox (Windows + Linux)
 
-This folder provides a hardened Docker setup for running Mercury plugin
+This folder provides a hardened Docker setup for running Mercury v3.0 plugin
 workloads in isolation.
 
 Security defaults:

@@ -6,7 +6,7 @@ README = Path(__file__).parent / "README.md"
 
 setup(
     name="mercury-framework",
-    version="0.3.0",
+    version="3.0.0",
     description="Mercury - an educational, safe framework for security research and simulation.",
     long_description=README.read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",

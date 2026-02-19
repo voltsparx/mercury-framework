@@ -10,10 +10,10 @@ simple `install.ps1` helper that extracts the archive to
 Requirements: PowerShell (Windows). 7-Zip optional — if present, this script
 can optionally use `7z.exe` to create a self-extracting archive.
 
-Usage: .\scripts\build_windows_installer.ps1 -Version 0.3.0
+Usage: .\scripts\build_windows_installer.ps1 -Version 3.0.0
 #>
 param(
-    [string]$Version = "0.3.0",
+    [string]$Version = "3.0.0",
     [switch]$Use7Zip
 )
 
@@ -113,4 +113,5 @@ if ($Use7Zip) {
 }
 
 Write-Host "Windows installer artifacts created in: $dist"
+
 

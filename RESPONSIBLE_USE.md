@@ -1,6 +1,6 @@
 # Responsible Use
 
-Mercury Framework is built for safe simulation and defensive training only.
+Mercury Framework v3.0 is built for safe simulation and defensive training only.
 
 Rules:
 - Use only in environments you own or where you have explicit written authorization.

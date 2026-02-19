@@ -1,0 +1,62 @@
+name: Bug Report
+description: Report a defect in framework behavior
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please provide enough detail to reproduce safely.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What framework version are you using?
+      placeholder: v3.0 / 3.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: Exact commands and steps to reproduce.
+      placeholder: |
+        1. python run.py --quickstart
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or traceback
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety checks
+      options:
+        - label: I confirm this report is for authorized simulation usage only.
+          required: true

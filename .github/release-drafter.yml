@@ -1,0 +1,38 @@
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+categories:
+  - title: "Breaking Changes"
+    labels:
+      - "breaking-change"
+  - title: "Features"
+    labels:
+      - "enhancement"
+  - title: "Bug Fixes"
+    labels:
+      - "bug"
+  - title: "Documentation"
+    labels:
+      - "documentation"
+  - title: "CI and Release"
+    labels:
+      - "ci"
+      - "release"
+change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+template: |
+  ## Summary
+  $CHANGES
+
+  ## Quality Gates
+  - CI quality workflow with lint/type/test/coverage
+  - Manifest validation
+
+  ## Release Hardening
+  - Wheel and sdist artifacts
+  - SHA256 checksums
+  - Signed checksum manifest
+  - CycloneDX SBOM
+  - Build provenance attestation
+
+  ## Governance
+  - Issue and PR templates
+  - CODEOWNERS

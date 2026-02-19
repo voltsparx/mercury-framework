@@ -1,10 +1,11 @@
 {
   "name": "network-sim-template",
-  "version": "0.3.0",
+  "version": "3.0.0",
   "description": "Network simulation template (local-only).",
   "author": "yourname",
   "network_policy": "local-only",
   "responsible_use": "Use for local network simulator testing in lab.",
   "usage": "run network-sim-template run"
 }
+
 

@@ -15,7 +15,7 @@ def test_write_run_report_creates_json_and_markdown(tmp_path: Path):
     report = write_run_report(
         report_dir=tmp_path,
         plugin_name="example_simulator",
-        manifest={"version": "0.3.0", "author": "test", "network_policy": "local-only"},
+        manifest={"version": "3.0.0", "author": "test", "network_policy": "local-only"},
         phases=["run"],
         execution=result,
         runner="subprocess",
@@ -27,4 +27,5 @@ def test_write_run_report_creates_json_and_markdown(tmp_path: Path):
     names = [f.name for f in files]
     assert any(name.endswith(".json") for name in names)
     assert any(name.endswith(".md") for name in names)
+
 

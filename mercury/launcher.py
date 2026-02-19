@@ -8,7 +8,18 @@ import subprocess
 import sys
 from typing import List
 
+from .colors import style
+from .diagnostics import collect_diagnostics, write_diagnostics_report
 from .device_profiles import DEFAULT_PROFILE
+from .metadata import (
+    AUTHOR,
+    CONTACT_EMAIL,
+    PROJECT_NAME,
+    PROJECT_VERSION,
+    PROJECT_VERSION_TAG,
+    TAGLINE,
+    colored_summary,
+)
 
 
 def ensure_requirements(reqfile: str = "requirements.txt", auto_yes: bool = False) -> None:
@@ -75,6 +86,12 @@ def _choose_mode() -> str:
     return "exit"
 
 
+def _print_header(theme: str) -> None:
+    print(colored_summary(theme=theme))
+    print(style(f"{TAGLINE}", "muted", theme=theme))
+    print()
+
+
 def _pick_device_profile(theme: str, current_profile: str) -> str:
     from .device_profiles import profile_keys
     from .ui import print_status, prompt
@@ -109,6 +126,7 @@ def _guided_wizard(
 
     if clear_screen:
         clear_terminal(force=True)
+    _print_header(theme)
 
     current_profile = device_profile
     device = SimulatedDevice(profile_key=current_profile)
@@ -161,6 +179,7 @@ def _guided_wizard(
                 report_dir=report_dir,
                 clear_on_start=False,
                 device_profile=current_profile,
+                strict=True,
             )
         elif choice == "3":
             print(device.device_info())
@@ -183,23 +202,104 @@ def _guided_wizard(
             print_status("error", "Invalid choice.", theme=theme)
 
 
+def _show_metadata(theme: str) -> int:
+    print(colored_summary(theme=theme))
+    print(style(f"project_version={PROJECT_VERSION}", "muted", theme=theme))
+    print(style(f"author={AUTHOR}", "muted", theme=theme))
+    print(style(f"contact={CONTACT_EMAIL}", "muted", theme=theme))
+    return 0
+
+
+def _run_doctor(theme: str, report_dir: str) -> int:
+    payload = collect_diagnostics(report_dir=report_dir)
+    checks = payload.get("checks", {})
+    print(style(f"[INFO] python_version={payload['environment'].get('python_version')}", "info", theme=theme))
+    print(style(f"[INFO] docker_available={checks.get('docker_available')}", "info", theme=theme))
+    print(style(f"[INFO] runnable_plugins={payload['plugins'].get('runnable')}", "info", theme=theme))
+    report = write_diagnostics_report(report_dir=report_dir)
+    if payload.get("overall_ok"):
+        print(style(f"[OK] diagnostics_report={report}", "success", theme=theme))
+        return 0
+    print(style(f"[WARN] diagnostics_report={report}", "warning", theme=theme))
+    return 1
+
+
+def _run_quickstart(
+    *,
+    theme: str,
+    report_dir: str,
+    clear_screen: bool,
+    device_profile: str,
+    docker_mode: bool,
+) -> int:
+    from .console import start_console
+    from .ui import clear_terminal
+
+    if clear_screen:
+        clear_terminal(force=True)
+    _print_header(theme)
+    print(style("[INFO] Quickstart is running a safe baseline workflow.", "info", theme=theme))
+
+    commands = [
+        "metadata",
+        "doctor",
+        "device current",
+        "modules",
+        "run sandbox_healthcheck run" + (" --docker" if docker_mode else ""),
+    ]
+    rc = start_console(
+        non_interactive=True,
+        commands=commands,
+        theme=theme,
+        report_dir=report_dir,
+        clear_on_start=False,
+        device_profile=device_profile,
+        strict=False,
+    )
+    if rc == 0:
+        print(style("[OK] Quickstart finished successfully.", "success", theme=theme))
+    else:
+        print(style(f"[WARN] Quickstart completed with exit code {rc}.", "warning", theme=theme))
+    print(style("[INFO] Next step: run `python run.py --wizard` or `python run.py`.", "info", theme=theme))
+    return rc
+
+
 def build_parser() -> argparse.ArgumentParser:
     from .colors import theme_names
     from .device_profiles import profile_keys
 
     parser = argparse.ArgumentParser(
         prog="mercury-framework",
-        description="Mercury Framework - safe educational simulation scaffold",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=(
+            f"{PROJECT_NAME} {PROJECT_VERSION_TAG}\n"
+            f"{TAGLINE}\n\n"
+            "Core modes:\n"
+            "  1) Beginner wizard for guided usage\n"
+            "  2) Advanced command mode for operators and CI"
+        ),
+        epilog=(
+            "Examples:\n"
+            "  python run.py --quickstart\n"
+            "  python run.py --doctor\n"
+            "  python run.py -c \"run incident_reporter run\"\n"
+            "  python run.py --device-profile windows_workstation --wizard"
+        ),
     )
     parser.add_argument("-c", "--command", help="Execute one console command and exit")
     parser.add_argument("-s", "--script", help="Execute a command script file and exit")
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-accept missing dependency installs")
     parser.add_argument("--wizard", action="store_true", help="Start guided beginner mode")
+    parser.add_argument("--quickstart", action="store_true", help="Run a safe onboarding workflow for beginners")
+    parser.add_argument("--doctor", action="store_true", help="Run environment diagnostics and write a report")
+    parser.add_argument("--show-metadata", action="store_true", help="Print project metadata and exit")
     parser.add_argument("--list-plugins", action="store_true", help="List discovered runnable plugins and exit")
     parser.add_argument("--docker", action="store_true", help="Use Docker mode for guided plugin runs")
     parser.add_argument("--report-dir", default="reports", help="Directory for generated run reports")
     parser.add_argument("--theme", choices=theme_names(), default="mercury", help="Terminal color theme")
     parser.add_argument("--no-clear", action="store_true", help="Do not clear terminal before interactive mode")
+    parser.add_argument("--no-color", action="store_true", help="Disable ANSI colors")
+    parser.add_argument("--strict", action="store_true", help="Stop script/command mode on first failure")
     parser.add_argument(
         "--device-profile",
         choices=profile_keys(),
@@ -213,11 +313,20 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    if args.no_color:
+        os.environ["NO_COLOR"] = "1"
+
     ensure_requirements("requirements.txt", auto_yes=args.yes)
 
     from .console import start_console
     from .plugin_loader import discover_plugins
     from .ui import clear_terminal
+
+    if args.show_metadata:
+        return _show_metadata(args.theme)
+
+    if args.doctor:
+        return _run_doctor(args.theme, args.report_dir)
 
     if args.list_plugins:
         plugins = discover_plugins()
@@ -236,6 +345,7 @@ def main(argv: list[str] | None = None) -> int:
             report_dir=args.report_dir,
             clear_on_start=False,
             device_profile=args.device_profile,
+            strict=args.strict,
         )
 
     if args.script:
@@ -247,9 +357,19 @@ def main(argv: list[str] | None = None) -> int:
             report_dir=args.report_dir,
             clear_on_start=False,
             device_profile=args.device_profile,
+            strict=args.strict,
         )
 
     should_clear = not args.no_clear
+    if args.quickstart:
+        return _run_quickstart(
+            theme=args.theme,
+            report_dir=args.report_dir,
+            clear_screen=should_clear,
+            device_profile=args.device_profile,
+            docker_mode=args.docker,
+        )
+
     if args.wizard:
         return _guided_wizard(
             theme=args.theme,

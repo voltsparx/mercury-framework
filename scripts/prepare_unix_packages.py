@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'dist'
 PKG_NAME = 'mercury-framework'
-VERSION = sys.argv[1] if len(sys.argv) > 1 else '0.3.0'
+VERSION = sys.argv[1] if len(sys.argv) > 1 else '3.0.0'
 
 OUT.mkdir(exist_ok=True)
 
@@ -95,4 +95,5 @@ else:
     print('dpkg-deb not found - skipping .deb build (OK on non-Linux hosts).')
 
 print('Prepared Unix packaging artifacts under:', OUT)
+
 

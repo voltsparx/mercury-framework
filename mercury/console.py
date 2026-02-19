@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import List, Optional
 
 from .benign_demo import EchoServer, echo_client_send
+from .diagnostics import collect_diagnostics, write_diagnostics_report
+from .metadata import colored_summary
 from .plugin_loader import discover_plugins
 from .reporting import list_reports, write_run_report
 from .sandbox import run_plugin_docker, run_plugin_subprocess, validate_manifest_local_only
@@ -48,6 +50,9 @@ class MercuryConsole:
             "help",
             "clear",
             "banner",
+            "metadata",
+            "doctor",
+            "quickstart",
             "modules",
             "info",
             "run",
@@ -86,6 +91,7 @@ class MercuryConsole:
         if self.clear_on_start:
             clear_terminal(force=True)
         display_banner(theme=self.theme)
+        print(colored_summary(theme=self.theme))
         print_status("info", "Type 'help' for commands. Use isolated labs only.", theme=self.theme)
         while True:
             try:
@@ -102,20 +108,23 @@ class MercuryConsole:
             except Exception as exc:
                 print_status("error", f"Command failed: {exc}", theme=self.theme)
 
-    def execute_line(self, line: str) -> None:
+    def execute_line(self, line: str) -> int:
         try:
             args = shlex.split(line)
         except ValueError as exc:
             print_status("error", f"Input parse error: {exc}", theme=self.theme)
-            return
+            return 2
         if not args:
-            return
+            return 0
         cmd = args[0].lower()
         handler = getattr(self, f"do_{cmd}", None)
         if not handler:
             print_status("error", f"Unknown command '{cmd}'. Type 'help'.", theme=self.theme)
-            return
-        handler(args[1:])
+            return 2
+        result = handler(args[1:])
+        if isinstance(result, int):
+            return result
+        return 0
 
     def do_help(self, argv: List[str]) -> None:
         print(
@@ -126,10 +135,13 @@ class MercuryConsole:
                 help                     Show this help
                 clear                    Clear terminal
                 banner                   Show another banner
+                metadata                 Show project metadata
+                doctor                   Run environment diagnostics
+                quickstart               Run baseline onboarding flow
                 modules                  List runnable plugins
                 info <plugin>            Show plugin manifest details
                 run <plugin> [phases]    Run plugin (phases: setup,run,cleanup)
-                                         Options: --docker --report-dir <path>
+                                         Options: --docker --report-dir <path> --timeout <sec>
                 device list              List built-in simulated device profiles
                 device use <profile>     Switch current simulated device profile
                 device current           Show active profile details
@@ -142,6 +154,42 @@ class MercuryConsole:
                 """
             ).strip()
         )
+
+    def do_metadata(self, argv: List[str]) -> int:
+        print(colored_summary(theme=self.theme))
+        return 0
+
+    def do_doctor(self, argv: List[str]) -> int:
+        payload = collect_diagnostics(report_dir=self.report_dir)
+        checks = payload.get("checks", {})
+        print_status("info", f"Python: {payload['environment'].get('python_version')}", theme=self.theme)
+        print_status(
+            "info",
+            f"Docker available: {checks.get('docker_available')}",
+            theme=self.theme,
+        )
+        print_status(
+            "info",
+            f"Runnable plugins: {payload['plugins'].get('runnable')}",
+            theme=self.theme,
+        )
+        if payload.get("overall_ok"):
+            print_status("ok", "Diagnostics passed.", theme=self.theme)
+            path = write_diagnostics_report(report_dir=self.report_dir)
+            print_status("ok", f"Diagnostics report: {path}", theme=self.theme)
+            return 0
+        print_status("warn", "Diagnostics found issues. Review report.", theme=self.theme)
+        path = write_diagnostics_report(report_dir=self.report_dir)
+        print_status("warn", f"Diagnostics report: {path}", theme=self.theme)
+        return 1
+
+    def do_quickstart(self, argv: List[str]) -> int:
+        print_status("info", "Quickstart flow: metadata, doctor, device current, modules.", theme=self.theme)
+        steps = ["metadata", "doctor", "device current", "modules"]
+        rc = 0
+        for command in steps:
+            rc = max(rc, self.execute_line(command))
+        return rc
 
     def do_clear(self, argv: List[str]) -> None:
         clear_terminal(force=True)
@@ -180,32 +228,49 @@ class MercuryConsole:
 
     def do_run(self, argv: List[str]) -> None:
         if not argv:
-            print("Usage: run <plugin_name> [phases] [--docker] [--report-dir <path>]")
-            return
+            print("Usage: run <plugin_name> [phases] [--docker] [--timeout <sec>] [--report-dir <path>]")
+            return 2
 
         plugin_name = argv[0]
         plugin = self._find_plugin(plugin_name)
         if not plugin:
             print_status("error", "Plugin not found.", theme=self.theme)
-            return
+            return 2
 
         manifest = plugin.get("manifest", {})
         if not validate_manifest_local_only(manifest):
             print_status("error", "Plugin rejected: requires network_policy=local-only.", theme=self.theme)
-            return
+            return 2
 
         phase_spec = "run"
         use_docker = False
+        timeout = 25
         report_dir = self.report_dir
         index = 1
         while index < len(argv):
             token = argv[index]
             if token == "--docker":
                 use_docker = True
+            elif token == "--timeout":
+                if index + 1 >= len(argv):
+                    print("Usage error: --timeout requires seconds")
+                    return 2
+                try:
+                    timeout = int(argv[index + 1])
+                except ValueError:
+                    print("Usage error: --timeout must be an integer")
+                    return 2
+                index += 1
+            elif token.startswith("--timeout="):
+                try:
+                    timeout = int(token.split("=", 1)[1])
+                except ValueError:
+                    print("Usage error: --timeout must be an integer")
+                    return 2
             elif token == "--report-dir":
                 if index + 1 >= len(argv):
                     print("Usage error: --report-dir requires a path")
-                    return
+                    return 2
                 report_dir = argv[index + 1]
                 index += 1
             elif token.startswith("--report-dir="):
@@ -224,11 +289,19 @@ class MercuryConsole:
             phase_tokens = ["run"]
 
         runner = "docker" if use_docker else "subprocess"
-        print_status("info", f"Running '{plugin_name}' via {runner} with {phase_tokens}.", theme=self.theme)
-        if use_docker:
-            result = run_plugin_docker(plugin["path"], args=lifecycle_args, timeout=40)
-        else:
-            result = run_plugin_subprocess(plugin["path"], args=lifecycle_args, timeout=25)
+        print_status(
+            "info",
+            f"Running '{plugin_name}' via {runner} with {phase_tokens} (timeout={timeout}s).",
+            theme=self.theme,
+        )
+        try:
+            if use_docker:
+                result = run_plugin_docker(plugin["path"], args=lifecycle_args, timeout=timeout)
+            else:
+                result = run_plugin_subprocess(plugin["path"], args=lifecycle_args, timeout=timeout)
+        except Exception as exc:
+            print_status("error", f"Execution failed before start: {exc}", theme=self.theme)
+            return 1
 
         print(color_text("--- stdout ---", "success", theme=self.theme))
         print(result.get("stdout", "").rstrip())
@@ -237,16 +310,20 @@ class MercuryConsole:
             print(color_text("--- stderr ---", "error", theme=self.theme))
             print(stderr)
 
-        report = write_run_report(
-            report_dir=report_dir,
-            plugin_name=plugin_name,
-            manifest=manifest,
-            phases=phase_tokens,
-            execution=result,
-            runner=runner,
-        )
-        print_status("ok", f"JSON report: {report['json_path']}", theme=self.theme)
-        print_status("ok", f"Markdown report: {report['md_path']}", theme=self.theme)
+        try:
+            report = write_run_report(
+                report_dir=report_dir,
+                plugin_name=plugin_name,
+                manifest=manifest,
+                phases=phase_tokens,
+                execution=result,
+                runner=runner,
+            )
+            print_status("ok", f"JSON report: {report['json_path']}", theme=self.theme)
+            print_status("ok", f"Markdown report: {report['md_path']}", theme=self.theme)
+        except Exception as exc:
+            print_status("error", f"Failed to write report: {exc}", theme=self.theme)
+            return 1
 
         if result.get("returncode") != 0:
             print_status(
@@ -254,6 +331,8 @@ class MercuryConsole:
                 f"Plugin exited with code {result.get('returncode')}. Review report output.",
                 theme=self.theme,
             )
+            return int(result.get("returncode") or 1)
+        return 0
 
     def do_device(self, argv: List[str]) -> None:
         action = argv[0].lower() if argv else "current"
@@ -397,6 +476,7 @@ def start_console(
     report_dir: str = "reports",
     clear_on_start: bool = False,
     device_profile: str = "android_pixel_lab",
+    strict: bool = False,
 ) -> int:
     """Start the Mercury console in interactive or scripted mode."""
     console = MercuryConsole(
@@ -406,12 +486,17 @@ def start_console(
         device_profile=device_profile,
     )
     if non_interactive:
+        last_rc = 0
         for line in commands or []:
             try:
-                console.execute_line(line)
+                rc = console.execute_line(line)
+                if rc != 0:
+                    last_rc = rc
+                    if strict:
+                        return rc
             except SystemExit:
                 break
-        return 0
+        return last_rc
     console.start()
     return 0
 

@@ -1,10 +1,11 @@
 {
   "name": "sandbox_healthcheck",
-  "version": "0.3.0",
+  "version": "3.0.0",
   "description": "Verify simulation runtime safety flags and local environment basics.",
   "author": "mercury_team",
   "network_policy": "local-only",
   "responsible_use": "Use to validate isolated training setup before other plugin runs.",
   "usage": "run sandbox_healthcheck run"
 }
+
 

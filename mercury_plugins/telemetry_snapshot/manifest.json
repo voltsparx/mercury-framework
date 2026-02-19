@@ -1,10 +1,11 @@
 {
   "name": "telemetry_snapshot",
-  "version": "0.3.0",
+  "version": "3.0.0",
   "description": "Collect a simulated device telemetry snapshot for analysis training.",
   "author": "mercury_team",
   "network_policy": "local-only",
   "responsible_use": "Safe local simulation only. No real device telemetry is collected.",
   "usage": "run telemetry_snapshot run"
 }
+
 

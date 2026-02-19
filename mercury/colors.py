@@ -13,7 +13,7 @@ from typing import Dict
 
 try:
     # Optional dependency: enables ANSI handling on older Windows terminals.
-    from colorama import just_fix_windows_console  # type: ignore
+    from colorama import just_fix_windows_console
 
     just_fix_windows_console()
 except Exception:

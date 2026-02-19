@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Report
+    url: mailto:voltsparx@gmail.com
+    about: For sensitive security reports, use responsible disclosure via email.
+  - name: Responsible Use Policy
+    url: https://github.com/volts/mercury-framework/blob/main/RESPONSIBLE_USE.md
+    about: Review policy before requesting sensitive functionality.

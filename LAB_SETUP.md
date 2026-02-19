@@ -1,4 +1,4 @@
-Lab setup and emulator guidance (safe testing only)
+Lab setup and emulator guidance for Mercury v3.0 (safe testing only)
 
 This document explains how to prepare isolated test environments for Mercury
 plugins and templates. Always get written permission before testing on any

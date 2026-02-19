@@ -1,3 +1,5 @@
 """Mercury Framework package."""
 
-__version__ = "0.3.0"
+from .metadata import PROJECT_VERSION
+
+__version__ = PROJECT_VERSION

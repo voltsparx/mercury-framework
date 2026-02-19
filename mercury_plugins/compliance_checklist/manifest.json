@@ -1,10 +1,11 @@
 {
   "name": "compliance_checklist",
-  "version": "0.3.0",
+  "version": "3.0.0",
   "description": "Print an operator checklist for authorized, isolated simulation sessions.",
   "author": "mercury_team",
   "network_policy": "local-only",
   "responsible_use": "Use this checklist before any training activity to confirm legal and technical scope.",
   "usage": "run compliance_checklist run"
 }
+
 

@@ -1,10 +1,11 @@
 {
   "name": "windows-sim-template",
-  "version": "0.3.0",
+  "version": "3.0.0",
   "description": "Windows simulation template (benign demo).",
   "author": "yourname",
   "network_policy": "local-only",
   "responsible_use": "Use for emulator-only testing and detection training.",
   "usage": "run windows-sim-template run"
 }
+
 

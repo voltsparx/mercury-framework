@@ -9,7 +9,7 @@ Prerequisites:
  - Python is expected to be present on target machines (the MSI will install files and create a shortcut that invokes `python run.py`).
 
 Usage:
-  .\scripts\build_msi.ps1 -Version 0.3.0
+  .\scripts\build_msi.ps1 -Version 3.0.0
 
 This script:
  - copies the repository into a temporary staging folder (excludes .git, .venv, dist)
@@ -22,7 +22,7 @@ Caveats:
  - For a full packaged runtime installer consider using a PyInstaller build or bundling an embeddable Python.
 #>
 param(
-    [string]$Version = "0.3.0"
+    [string]$Version = "3.0.0"
 )
 
 Set-StrictMode -Version Latest
@@ -110,4 +110,5 @@ Write-Host "MSI created: $outMsi"
 # Remove-Item -Recurse -Force $tmp
 
 Write-Host "Done. You can find the MSI in: $outMsi"
+
 

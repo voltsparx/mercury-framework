@@ -1,10 +1,11 @@
 {
   "name": "local_log_watch",
-  "version": "0.3.0",
+  "version": "3.0.0",
   "description": "Run suspicious-pattern parsing against bundled sample logs.",
   "author": "mercury_team",
   "network_policy": "local-only",
   "responsible_use": "Use for defensive detection tuning and log parser training only.",
   "usage": "run local_log_watch run"
 }
+
 

@@ -1,0 +1,82 @@
+A. About
+Mercury Framework v3.0 is an advanced safe simulation framework for authorized security labs.
+
+B. Beginner Mode
+Run python run.py --wizard for guided prompts.
+
+C. Command Mode
+Run python run.py -c "modules" for a single command or python run.py -s commands.txt for scripts.
+
+D. Diagnostics
+Run python run.py --doctor to check environment, plugin state, and report directory health.
+
+E. Entry Points
+Use python run.py, python -m mercury, or mercury.
+
+F. Features
+Framework includes plugin lifecycle execution, local-only safety checks, Docker isolation, reports, multi-device simulation profiles, and CI quality gates with core-module coverage threshold.
+
+G. Getting Started
+Use python run.py --quickstart for the fastest onboarding flow.
+
+H. Help
+Use python run.py --help for all flags and examples.
+
+I. Installation
+Create a virtual environment and run python -m pip install -e .
+
+J. JSON Reports
+Plugin runs generate JSON reports under reports/.
+
+K. Known Safety Policy
+Only run in isolated environments with explicit authorization.
+
+L. Launcher Flags
+Common flags: --wizard, --quickstart, --doctor, --show-metadata, --list-plugins, --docker.
+
+M. Metadata
+Author: voltsparx
+Contact: voltsparx@gmail.com
+Version tag: v3.0
+
+N. Non-Interactive Usage
+Use -c and -s flags for CI, automation, and repeatable training workflows.
+
+O. Output
+Console uses ANSI color themes from the internal color system.
+
+P. Plugin Management
+Use modules and info <plugin> in console to inspect plugin metadata and safe-use notes.
+
+Q. Quickstart
+Quickstart runs metadata, diagnostics, device summary, plugin list, and a baseline healthcheck plugin.
+
+R. Reporting
+Reports are written to reports/ as JSON and Markdown.
+Release tags generate hardened artifacts with checksums, signatures, SBOM, and provenance.
+
+S. Scopes
+Do not target production or unauthorized systems.
+
+T. Themes
+Use --theme mercury, --theme sunset, or --theme mono.
+
+U. Usage Basics
+Launch console: python run.py
+Run plugin: run incident_reporter run
+Switch device profile: device use windows_workstation
+
+V. Versioning
+Current project package version is 3.0.0 and user-facing label is v3.0.
+
+W. Windows Docker
+Build with .\sandbox\build_windows.ps1 and run with .\sandbox\run_windows.ps1.
+
+X. External Access
+Docker mode uses network isolation defaults with no external network access.
+
+Y. Your Responsibility
+Operators are responsible for legal and ethical use, and contribution workflows use issue templates, pull request template, and CODEOWNERS governance.
+
+Z. Zero Trust Mindset
+Treat all simulation outputs as training data, validate assumptions, and document all exercises.

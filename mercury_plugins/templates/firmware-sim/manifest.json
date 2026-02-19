@@ -1,10 +1,11 @@
 {
   "name": "firmware-sim-template",
-  "version": "0.3.0",
+  "version": "3.0.0",
   "description": "Firmware simulation template (benign demo).",
   "author": "yourname",
   "network_policy": "local-only",
   "responsible_use": "Use for firmware emulation in lab environments.",
   "usage": "run firmware-sim-template run"
 }
+
 

@@ -1,0 +1,10 @@
+# Core maintainership
+* @voltsparx
+
+# Security and policy
+SECURITY.md @voltsparx
+RESPONSIBLE_USE.md @voltsparx
+
+# Workflows and release controls
+.github/workflows/* @voltsparx
+.github/release-drafter.yml @voltsparx

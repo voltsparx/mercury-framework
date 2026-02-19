@@ -4,7 +4,7 @@
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="$ROOT_DIR/dist/arch"
-VERSION="${1:-0.3.0}"
+VERSION="${1:-3.0.0}"
 MAKEPKG=${2:-}
 PKG_NAME="mercury-framework"
 
@@ -45,4 +45,5 @@ if [ "$MAKEPKG" = "--makepkg" ]; then
 fi
 
 echo "Arch packaging artifacts prepared in: $OUT_DIR"
+
 
