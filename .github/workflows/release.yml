@@ -56,7 +56,7 @@ jobs:
             dist/SHA256SUMS.txt
 
       - name: Generate signed build provenance attestation
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v3
         with:
           subject-path: "dist/*"
 
