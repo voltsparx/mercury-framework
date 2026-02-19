@@ -1,4 +1,4 @@
-"""Simulated storage — fake file listings to emulate gallery/storage.
+"""Simulated storage - fake file listings to emulate gallery/storage.
 
 All filenames and metadata are synthetic and intended for UI testing only.
 """

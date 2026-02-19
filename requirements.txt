@@ -1,4 +1,5 @@
-pytest>=7.0
-# Optional packages (install manually or allow run.py to install):
+colorama>=0.4.6
+# Optional/development packages:
+# pytest>=7.0
 # frida-tools
 # pyyaml

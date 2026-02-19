@@ -5,7 +5,7 @@
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="$ROOT_DIR/dist"
-VERSION="${1:-0.1.0}"
+VERSION="${1:-0.3.0}"
 PKG_NAME="mercury-framework"
 STAGING=$(mktemp -d)
 
@@ -45,3 +45,4 @@ hdiutil create -volname "Mercury Framework" -srcfolder "$DMG_CONTENTS" -ov -form
 rm -rf "$STAGING"
 
 echo "macOS installer created: $DMG_OUTPUT (and PKG: $PKG_OUTPUT)"
+

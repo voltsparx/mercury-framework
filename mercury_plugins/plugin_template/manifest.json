@@ -1,9 +1,10 @@
 {
   "name": "plugin_template",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Template for safe plugins. Declare network_policy and responsible_use.",
   "author": "yourname",
   "network_policy": "local-only",
   "responsible_use": "Describe responsible use and testing constraints here.",
   "usage": "run: perform demo run (no network). Example: run plugin_template run"
 }
+

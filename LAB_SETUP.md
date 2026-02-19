@@ -10,7 +10,7 @@ system you do not own.
 - Create isolated networks (host-only or internal) so the VM cannot reach the Internet.
 
 2) Android emulator (AVD) guidance
-- Install Android Studio and use `avdmanager` to create AVDs for the versions you want to test (Android 8–16).
+- Install Android Studio and use `avdmanager` to create AVDs for the versions you want to test (Android 8-16).
 - Use `adb` to install benign test APKs from `samples/android_template`.
 - Run plugins marked `android-sim` against the emulator only.
 

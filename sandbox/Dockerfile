@@ -1,10 +1,17 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    MERCURY_SAFE=1
 
 WORKDIR /app
+
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
 COPY . /app
-RUN pip install --no-cache-dir pytest
+RUN useradd --create-home --uid 10001 mercury && chown -R mercury:mercury /app
+USER mercury
 
-# This container is intended as an example sandbox for running plugin subprocesses
-# in an isolated environment. Use with caution and only for authorized testing.
-
-CMD ["python", "-c", "print('Mercury sandbox container ready')"]
+# Example sandbox image for safe local plugin simulation.
+CMD ["python", "-c", "print('Mercury sandbox image ready')"]

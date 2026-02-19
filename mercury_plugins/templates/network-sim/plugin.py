@@ -1,4 +1,4 @@
-"""Network simulation plugin template — benign example (local-only)."""
+"""Network simulation plugin template - benign example (local-only)."""
 import sys
 import os
 from mercury.plugin_api import BasePlugin, dispatch_lifecycle

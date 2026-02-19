@@ -1,19 +1,50 @@
-Containerized sandbox example
+Containerized sandbox (Windows + Linux)
 
-This folder contains a minimal Dockerfile that shows how you could run plugin
-subprocesses inside an isolated container. This is an example only — for
-real isolation use full VM images and strict network rules.
+This folder provides a hardened Docker setup for running Mercury plugin
+workloads in isolation.
 
-Build:
+Security defaults:
+- no external network (`--network none`)
+- read-only root filesystem
+- dedicated tmpfs for `/tmp`
+- dropped Linux capabilities
+- no new privileges
 
-```bash
-docker build -t mercury-sandbox:latest .
+Build image (Windows PowerShell):
+
+```powershell
+.\sandbox\build_windows.ps1 -Image mercury-sandbox:latest
 ```
 
-Run an interactive shell inside the container (bind the repo if desired):
+Build image (Linux/macOS shell):
 
 ```bash
-docker run --rm -it -v "$(pwd):/app" mercury-sandbox:latest /bin/bash
+./sandbox/build_linux.sh mercury-sandbox:latest
 ```
 
-From inside the container you can run plugin subprocesses with `MERCURY_SAFE=1`.
+Run a plugin in Docker (Windows PowerShell):
+
+```powershell
+.\sandbox\run_windows.ps1 -Plugin incident_reporter -Phases run
+```
+
+Run a plugin in Docker (Linux/macOS shell):
+
+```bash
+./sandbox/run_linux.sh mercury-sandbox:latest incident_reporter run
+```
+
+Compose workflow:
+
+```bash
+docker compose -f sandbox/docker-compose.yml run --rm mercury-sandbox
+```
+
+Mercury integrated Docker mode from repo root:
+
+```powershell
+python run.py -c "run incident_reporter run --docker"
+```
+
+This is an isolation helper, not a perfect security boundary. For higher
+assurance, run inside dedicated VMs and enforce host firewall rules.

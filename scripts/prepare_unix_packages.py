@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'dist'
 PKG_NAME = 'mercury-framework'
-VERSION = sys.argv[1] if len(sys.argv) > 1 else '0.1.0'
+VERSION = sys.argv[1] if len(sys.argv) > 1 else '0.3.0'
 
 OUT.mkdir(exist_ok=True)
 
@@ -66,7 +66,7 @@ package() {{
 
 # Attempt to build a .deb if dpkg-deb exists
 if shutil.which('dpkg-deb'):
-    print('dpkg-deb found — attempting to build .deb (may require Linux).')
+    print('dpkg-deb found - attempting to build .deb (may require Linux).')
     tmp_deb = OUT / 'debbuild'
     if tmp_deb.exists():
         shutil.rmtree(tmp_deb)
@@ -92,6 +92,7 @@ Description: Mercury Framework (safe educational scaffold)
     shutil.rmtree(tmp_deb)
     print(f"Built .deb: {out_deb}")
 else:
-    print('dpkg-deb not found — skipping .deb build (OK on non-Linux hosts).')
+    print('dpkg-deb not found - skipping .deb build (OK on non-Linux hosts).')
 
 print('Prepared Unix packaging artifacts under:', OUT)
+

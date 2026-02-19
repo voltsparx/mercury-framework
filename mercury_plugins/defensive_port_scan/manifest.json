@@ -1,9 +1,10 @@
 {
   "name": "defensive_port_scan",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Safe defensive port scanner for localhost to aid triage (no remote scanning).",
   "author": "mercury_team",
   "network_policy": "local-only",
   "responsible_use": "Use only in authorized environments. Scans localhost ports for quick triage.",
   "usage": "run defensive_port_scan run --ports=22,80,443"
 }
+

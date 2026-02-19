@@ -1,56 +1,140 @@
-"""Sandbox runner — execute plugins in a subprocess with simple safety checks.
+"""Sandbox runner helpers for plugin execution.
 
-This is NOT a security boundary. It provides a lightweight isolation pattern for
-plugins by running them in a separate Python process and enforcing manifest
-policies (e.g., `network_policy: local-only`). For real isolation use VMs/containers.
+This module is not a hard security boundary. It adds process separation,
+manifest policy checks, and optional Docker execution with `--network=none`.
 """
-import json
+from __future__ import annotations
+
 import os
+from pathlib import Path
 import subprocess
 import sys
-import threading
+import time
 from typing import Dict
 
 
-def run_plugin_subprocess(plugin_path: str, args: list | None = None, timeout: int = 10) -> Dict:
-    """Run `plugin.py` under `plugin_path` as subprocess and return stdout/stderr and returncode.
+def _project_root() -> Path:
+    return Path(__file__).resolve().parent.parent
 
-    `args` is a list of CLI args to pass to the plugin (e.g. `['--setup']`).
-    The plugin should support the lifecycle flags `--setup`, `--run`, and `--cleanup`.
-    An environment variable `MERCURY_SAFE=1` will be set for the subprocess.
-    """
-    plugin_file = os.path.join(plugin_path, "plugin.py")
-    if not os.path.isfile(plugin_file):
+
+def _resolve_plugin_file(plugin_path: str | Path) -> Path:
+    plugin_dir = Path(plugin_path).resolve()
+    plugin_file = plugin_dir / "plugin.py"
+    if not plugin_file.is_file():
         raise FileNotFoundError("plugin.py not found")
+
+    project = _project_root().resolve()
+    if project not in plugin_file.parents:
+        raise ValueError("Plugin path must stay inside project root")
+    return plugin_file
+
+
+def _run_command(cmd: list[str], *, env: dict, timeout: int, mode: str) -> Dict:
+    started = time.monotonic()
+    try:
+        completed = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            env=env,
+            check=False,
+        )
+        return {
+            "mode": mode,
+            "returncode": completed.returncode,
+            "stdout": completed.stdout,
+            "stderr": completed.stderr,
+            "timed_out": False,
+            "duration_sec": round(time.monotonic() - started, 3),
+            "command": cmd,
+        }
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "mode": mode,
+            "returncode": 124,
+            "stdout": exc.stdout or "",
+            "stderr": (exc.stderr or "") + "\n[mercury] Plugin execution timed out.",
+            "timed_out": True,
+            "duration_sec": round(time.monotonic() - started, 3),
+            "command": cmd,
+        }
+    except FileNotFoundError as exc:
+        return {
+            "mode": mode,
+            "returncode": 127,
+            "stdout": "",
+            "stderr": f"[mercury] Executable not found: {exc}",
+            "timed_out": False,
+            "duration_sec": round(time.monotonic() - started, 3),
+            "command": cmd,
+        }
+
+
+def run_plugin_subprocess(plugin_path: str, args: list | None = None, timeout: int = 10) -> Dict:
+    """Run `plugin.py` in a subprocess with `MERCURY_SAFE=1`."""
+    plugin_file = _resolve_plugin_file(plugin_path)
+    arg_list = list(args or ["--run"])
 
     env = os.environ.copy()
     env["MERCURY_SAFE"] = "1"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
 
-    # Ensure the project root is on PYTHONPATH so plugins can import `mercury.*`.
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+    project_root = str(_project_root())
     existing = env.get("PYTHONPATH", "")
-    if existing:
-        env["PYTHONPATH"] = project_root + os.pathsep + existing
-    else:
-        env["PYTHONPATH"] = project_root
+    env["PYTHONPATH"] = f"{project_root}{os.pathsep}{existing}" if existing else project_root
 
-    if args is None:
-        args = ["--run"]
+    cmd = [sys.executable, str(plugin_file)] + arg_list
+    return _run_command(cmd, env=env, timeout=timeout, mode="subprocess")
 
-    cmd = [sys.executable, plugin_file] + args
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, text=True)
 
-    timer = threading.Timer(timeout, proc.kill)
-    try:
-        timer.start()
-        out, err = proc.communicate()
-    finally:
-        timer.cancel()
+def run_plugin_docker(
+    plugin_path: str,
+    args: list | None = None,
+    *,
+    timeout: int = 20,
+    image: str = "mercury-sandbox:latest",
+) -> Dict:
+    """Run `plugin.py` inside a Docker container with network disabled."""
+    plugin_file = _resolve_plugin_file(plugin_path)
+    project_root = _project_root().resolve()
+    relative_plugin = plugin_file.relative_to(project_root).as_posix()
+    arg_list = list(args or ["--run"])
 
-    return {"returncode": proc.returncode, "stdout": out, "stderr": err}
+    env = os.environ.copy()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+
+    mount_src = str(project_root)
+    if os.name == "nt":
+        mount_src = mount_src.replace("\\", "/")
+
+    cmd = [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "-e",
+        "MERCURY_SAFE=1",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "-v",
+        f"{mount_src}:/app:ro",
+        "-w",
+        "/app",
+        image,
+        "python",
+        relative_plugin,
+    ] + arg_list
+    return _run_command(cmd, env=env, timeout=timeout, mode="docker")
 
 
 def validate_manifest_local_only(manifest: Dict) -> bool:
-    """Return True if manifest enforces local-only network policy."""
-    policy = manifest.get("network_policy", "local-only")
+    """Return True when manifest explicitly declares `network_policy: local-only`."""
+    policy = str(manifest.get("network_policy", "")).strip().lower()
     return policy == "local-only"

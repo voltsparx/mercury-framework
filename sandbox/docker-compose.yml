@@ -1,0 +1,21 @@
+services:
+  mercury-sandbox:
+    build:
+      context: ..
+      dockerfile: sandbox/Dockerfile
+    image: mercury-sandbox:latest
+    working_dir: /app
+    command: ["python", "-c", "print('Sandbox ready')"]
+    environment:
+      MERCURY_SAFE: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ..:/app:ro
+    network_mode: "none"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

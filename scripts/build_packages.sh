@@ -6,7 +6,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="$ROOT_DIR/dist"
-VERSION="${1:-0.1.0}"
+VERSION="${1:-0.3.0}"
 
 mkdir -p "$OUT_DIR"
 
@@ -63,3 +63,4 @@ echo "Arch package stub created. To build an Arch package run inside an Arch env
 echo "  cd $ARCH_DIR && makepkg -s"
 
 echo "All done. Packages available under: $OUT_DIR"
+

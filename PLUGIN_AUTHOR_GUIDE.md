@@ -12,7 +12,7 @@ Manifest example
 ```json
 {
   "name": "example_plugin",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Describe what this plugin does (safe-only).",
   "author": "yourname",
   "network_policy": "local-only",
@@ -25,6 +25,8 @@ Lifecycle
 - Plugins should implement `setup()`, `run()`, and `cleanup()` hooks where appropriate.
  - Plugins are executed via the Mercury sandbox which sets `MERCURY_SAFE=1` in the environment; plugins should check this variable and refuse to run otherwise.
 - Keep plugin actions benign and local-only: prefer `127.0.0.1` and simulated data unless you have explicit written authorization to test remote hosts.
+- Use `mercury.plugin_api.dispatch_lifecycle` for consistent `--setup/--run/--cleanup` behavior.
+- Plugin runs automatically generate JSON/Markdown reports in `reports/` through the main console workflow.
 
 Testing
 
@@ -41,3 +43,4 @@ Security and responsible use
 - Do NOT embed exploit code, backdoors, or persistence mechanisms in plugins hosted in this repository.
 - Use this framework for authorized testing, emulation, and training only.
 - If your work requires higher privileges or network access, document the justification and obtain explicit authorization.
+

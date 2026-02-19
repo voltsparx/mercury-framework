@@ -1,4 +1,4 @@
-"""Android simulation plugin template — do not include any exploit code.
+"""Android simulation plugin template - do not include any exploit code.
 
 This template demonstrates where authors could add emulator-only scripts
 or instrumentation logic for testing and detection training.

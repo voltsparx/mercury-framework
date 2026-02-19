@@ -1,9 +1,10 @@
 {
   "name": "educational_offense_template",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Metadata-only educational template describing offensive techniques. No exploit code included.",
   "author": "mercury_team",
   "network_policy": "local-only",
   "responsible_use": "This is for study and detection engineering only. Contains NO executable offensive payloads.",
   "usage": "info: displays description; run: refused (educational only)"
 }
+

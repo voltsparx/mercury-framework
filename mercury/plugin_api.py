@@ -38,7 +38,7 @@ def dispatch_lifecycle(plugin: BasePlugin):
     parser.add_argument("--setup", action="store_true", help="Run setup hook")
     parser.add_argument("--run", action="store_true", help="Run main hook")
     parser.add_argument("--cleanup", action="store_true", help="Run cleanup hook")
-    args = parser.parse_args()
+    args, _extra = parser.parse_known_args()
 
     # simple safety: require MERCURY_SAFE in env when running via sandbox
     # (the sandbox sets MERCURY_SAFE=1 before invoking the plugin)
@@ -46,6 +46,10 @@ def dispatch_lifecycle(plugin: BasePlugin):
     if os.environ.get("MERCURY_SAFE") != "1":
         print("[mercury] Plugins must be run via Mercury sandbox (MERCURY_SAFE=1)")
         return 1
+
+    # Default behavior: run main phase when no lifecycle flag is provided.
+    if not (args.setup or args.run or args.cleanup):
+        args.run = True
 
     code = 0
     if args.setup:

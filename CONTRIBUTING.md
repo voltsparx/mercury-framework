@@ -21,4 +21,4 @@ Code style
 - Keep code readable and well-documented.
 - Use type hints where appropriate.
 
-Thank you — and stay ethical.
+Thank you - and stay ethical.

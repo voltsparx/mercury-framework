@@ -1,4 +1,4 @@
-"""macOS simulation plugin template — benign example."""
+"""macOS simulation plugin template - benign example."""
 import sys
 import os
 from mercury.plugin_api import BasePlugin, dispatch_lifecycle

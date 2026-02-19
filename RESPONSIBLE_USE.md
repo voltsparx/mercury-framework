@@ -1,13 +1,12 @@
-# Responsible Use Policy
+# Responsible Use
 
-Mercury Framework is provided for educational and research purposes only. By using
-this software you agree to the following:
+Mercury Framework is built for safe simulation and defensive training only.
 
-- Use only in environments where you have explicit authorization (your systems, a lab,
-  or systems where you have written permission to test).
-- Do not attempt to deploy code from this repository against third-party devices,
-  networks, or services without their explicit consent.
-- Follow all applicable laws, rules, and organizational policies.
+Rules:
+- Use only in environments you own or where you have explicit written authorization.
+- Keep all activity in isolated labs (VMs, emulators, or offline containers).
+- Do not deploy this project on production endpoints.
+- Do not attempt unauthorized access, persistence, or data exfiltration.
+- Document scope, timing, and approvals before every exercise.
 
-If you are unsure whether your intended use is permitted, do not proceed and seek
-advice from a legal or security professional.
+If you discover behavior that could be unsafe, report it through `SECURITY.md`.

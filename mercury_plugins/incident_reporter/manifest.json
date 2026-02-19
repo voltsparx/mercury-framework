@@ -1,0 +1,10 @@
+{
+  "name": "incident_reporter",
+  "version": "0.3.0",
+  "description": "Generate a simulated incident summary report for tabletop exercises.",
+  "author": "mercury_team",
+  "network_policy": "local-only",
+  "responsible_use": "Use only for defensive simulations and training in authorized labs.",
+  "usage": "run incident_reporter run"
+}
+

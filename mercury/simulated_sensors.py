@@ -1,4 +1,4 @@
-"""Simulated sensors — provide fake sensor readings (accelerometer, GPS).
+"""Simulated sensors - provide fake sensor readings (accelerometer, GPS).
 
 Harmless data for UI demos and compatibility testing.
 """

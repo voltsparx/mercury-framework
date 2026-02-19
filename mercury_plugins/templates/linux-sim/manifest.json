@@ -1,9 +1,10 @@
 {
   "name": "linux-sim-template",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Linux simulation template (benign demo).",
   "author": "yourname",
   "network_policy": "local-only",
   "responsible_use": "Use for emulator-only testing and detection training.",
   "usage": "run linux-sim-template run"
 }
+

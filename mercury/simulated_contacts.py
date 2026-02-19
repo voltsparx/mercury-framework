@@ -1,4 +1,4 @@
-"""Simulated contacts module — harmless contact list for testing UI and flows."""
+"""Simulated contacts module - harmless contact list for testing UI and flows."""
 from dataclasses import dataclass
 from typing import List
 

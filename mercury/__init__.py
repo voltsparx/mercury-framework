@@ -1,4 +1,3 @@
-"""
-Mercury Framework
-Educational and safe security research framework.
-"""
+"""Mercury Framework package."""
+
+__version__ = "0.3.0"

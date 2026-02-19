@@ -1,26 +1,19 @@
-import argparse
+from mercury.plugin_api import BasePlugin, dispatch_lifecycle
 
-def setup():
-    print("Setup complete for example_simulator")
 
-def run():
-    print("Running safe example plugin")
+class ExampleSimulatorPlugin(BasePlugin):
+    def setup(self):
+        print("Setup complete for example_simulator")
+        return 0
 
-def cleanup():
-    print("Cleanup done for example_simulator")
+    def run(self):
+        print("Running safe example plugin")
+        return 0
+
+    def cleanup(self):
+        print("Cleanup done for example_simulator")
+        return 0
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--setup", action="store_true")
-    parser.add_argument("--run", action="store_true")
-    parser.add_argument("--cleanup", action="store_true")
-    args = parser.parse_args()
-
-    if args.setup:
-        setup()
-    elif args.run:
-        run()
-    elif args.cleanup:
-        cleanup()
-    else:
-        print("No action specified")
+    raise SystemExit(dispatch_lifecycle(ExampleSimulatorPlugin()))

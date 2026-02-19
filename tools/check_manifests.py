@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 from mercury.plugin_loader import discover_plugins
 
 def validate_manifest(plugin_path):
@@ -19,7 +20,7 @@ def validate_manifest(plugin_path):
     return True, None
 
 def main():
-    plugins = discover_plugins()
+    plugins = discover_plugins(include_non_runnable=True)
     all_valid = True
     for p in plugins:
         valid, error = validate_manifest(p["path"])
@@ -28,6 +29,8 @@ def main():
             print(f"Manifest validation failed for {p['name']}: {error}")
     if all_valid:
         print("All plugin manifests validated.")
+        return 0
+    return 1
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

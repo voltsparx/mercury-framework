@@ -1,26 +1,22 @@
-"""Mercury interactive console — single-entry REPL with module commands and help.
-
-This console mirrors the original project console but uses the `mercury` package
-and `mercury_plugins` directory. It enforces local-only plugin manifests and
-runs plugins inside the Mercury sandbox subprocess (sets `MERCURY_SAFE=1`).
-"""
+"""Mercury interactive console for safe simulation workflows."""
 from __future__ import annotations
 
+import importlib
 import shlex
 import textwrap
-import os
-from typing import Optional, List
+from pathlib import Path
+from typing import List, Optional
 
-from .ui import display_banner, color_text, prompt
+from .benign_demo import EchoServer, echo_client_send
 from .plugin_loader import discover_plugins
-from .sandbox import run_plugin_subprocess, validate_manifest_local_only
-from .simulated_device import SimulatedDevice
+from .reporting import list_reports, write_run_report
+from .sandbox import run_plugin_docker, run_plugin_subprocess, validate_manifest_local_only
 from .simulated_contacts import sample_contacts
+from .simulated_device import SimulatedDevice
 from .simulated_sensors import sensor_readings
 from .simulated_storage import storage_listing
-from .benign_demo import EchoServer
+from .ui import clear_terminal, color_text, display_banner, print_status, prompt
 
-from pathlib import Path
 try:
     import readline  # type: ignore
 except Exception:
@@ -28,311 +24,360 @@ except Exception:
 
 
 class MercuryConsole:
-    def __init__(self):
-        self.prompt = color_text("mercury> ", "green")
-        self.device = SimulatedDevice()
+    def __init__(
+        self,
+        *,
+        theme: str = "mercury",
+        report_dir: str = "reports",
+        clear_on_start: bool = False,
+        device_profile: str = "android_pixel_lab",
+    ):
+        self.theme = theme
+        self.report_dir = report_dir
+        self.clear_on_start = clear_on_start
+        self.prompt = color_text("mercury> ", "primary", theme=self.theme)
+        self.device = SimulatedDevice(profile_key=device_profile)
         self.echo_server: Optional[EchoServer] = None
         self.plugins = discover_plugins()
-        self.current_plugin: Optional[dict] = None
-        # setup completion and history
         self._setup_readline()
 
-    def _setup_readline(self):
-        histfile = Path.home() / ".mercury_history"
+    def _setup_readline(self) -> None:
+        if not readline:
+            return
+        commands = [
+            "help",
+            "clear",
+            "banner",
+            "modules",
+            "info",
+            "run",
+            "device",
+            "sim",
+            "echo",
+            "analyze",
+            "logparse",
+            "report",
+            "exit",
+            "quit",
+        ]
+        plugin_names = [p["name"] for p in self.plugins]
+        words = commands + plugin_names
+
+        def completer(text: str, state: int):
+            options = [w for w in words if w.startswith(text)]
+            if state < len(options):
+                return options[state]
+            return None
+
         try:
-            if readline:
-                # build completions from commands and plugin names
-                commands = [
-                    'help', 'banner', 'modules', 'info', 'run', 'sim', 'echo', 'analyze', 'logparse', 'exit', 'quit'
-                ]
-                plugin_names = [p['name'] for p in self.plugins]
-                words = commands + plugin_names
-
-                def completer(text, state):
-                    options = [w for w in words if w.startswith(text)]
-                    if state < len(options):
-                        return options[state]
-                    return None
-
-                readline.set_completer(completer)
-                readline.parse_and_bind('tab: complete')
-                # read history
-                try:
-                    readline.read_history_file(str(histfile))
-                except Exception:
-                    pass
-                import atexit
-
-                def save_hist():
-                    try:
-                        readline.write_history_file(str(histfile))
-                    except Exception:
-                        pass
-
-                atexit.register(save_hist)
+            readline.set_completer(completer)
+            readline.parse_and_bind("tab: complete")
         except Exception:
             pass
 
-    def start(self):
-        display_banner()
-        print(color_text("Type 'help' for commands. Be safe and use test environments only.", "yellow"))
+    def _refresh_plugins(self) -> None:
+        self.plugins = discover_plugins()
+
+    def _find_plugin(self, name: str) -> Optional[dict]:
+        self._refresh_plugins()
+        return next((p for p in self.plugins if p["name"] == name), None)
+
+    def start(self) -> None:
+        if self.clear_on_start:
+            clear_terminal(force=True)
+        display_banner(theme=self.theme)
+        print_status("info", "Type 'help' for commands. Use isolated labs only.", theme=self.theme)
         while True:
             try:
                 line = prompt(self.prompt)
             except (KeyboardInterrupt, EOFError):
                 print()
-                self.do_exit([])
-                break
-            if not line:
+                return
+            if not line.strip():
                 continue
-            args = shlex.split(line)
-            cmd = args[0].lower()
-            handler = getattr(self, f"do_{cmd}", None)
-            if handler:
-                try:
-                    handler(args[1:])
-                except Exception as e:
-                    print(color_text(f"Error: {e}", "red"))
-            else:
-                print(color_text(f"Unknown command: {cmd}. Type 'help' for a list.", "red"))
+            try:
+                self.execute_line(line)
+            except SystemExit:
+                return
+            except Exception as exc:
+                print_status("error", f"Command failed: {exc}", theme=self.theme)
 
-    def execute_line(self, line: str):
-        """Execute a single console line (used by non-interactive mode)."""
-        if not line:
+    def execute_line(self, line: str) -> None:
+        try:
+            args = shlex.split(line)
+        except ValueError as exc:
+            print_status("error", f"Input parse error: {exc}", theme=self.theme)
             return
-        args = shlex.split(line)
+        if not args:
+            return
         cmd = args[0].lower()
         handler = getattr(self, f"do_{cmd}", None)
-        if handler:
-            handler(args[1:])
-        else:
-            print(color_text(f"Unknown command: {cmd}. Type 'help' for a list.", "red"))
-
-    # Basic commands
-    def do_help(self, argv: List[str]):
-        """help [command]  - Show help. If command provided, show command-specific help."""
-        if argv:
-            cmd = argv[0].lower()
-            method = getattr(self, f"help_{cmd}", None)
-            if method:
-                method()
-            else:
-                print(color_text("No help available for that command.", "yellow"))
+        if not handler:
+            print_status("error", f"Unknown command '{cmd}'. Type 'help'.", theme=self.theme)
             return
-        print(textwrap.dedent(
-            """
-            Mercury console commands (safe, educational):
+        handler(args[1:])
 
-            help [command]         - Show this help or command-specific help
-            banner [n]             - Show a banner (n optional: 1-3)
-            modules                - List discovered plugin templates and plugins
-            info <plugin>          - Show manifest info for a plugin
-            run <plugin> [phases]  - Run plugin lifecycle phases (phases: setup,run,cleanup)
-            sim <what>             - Show simulated data (device|contacts|sensors|storage)
-            echo start|stop|send   - Control local echo server for demos
-            analyze manifest <path>- Analyze an AndroidManifest.xml (static only)
-            logparse <file>        - Run simple suspicious log parser on a file
-            exit|quit              - Exit the console
-            """
-        ))
+    def do_help(self, argv: List[str]) -> None:
+        print(
+            textwrap.dedent(
+                """
+                Mercury console commands:
 
-    def help_run(self):
-        print(textwrap.dedent(
-            """
-            run <plugin> [phases]
+                help                     Show this help
+                clear                    Clear terminal
+                banner                   Show another banner
+                modules                  List runnable plugins
+                info <plugin>            Show plugin manifest details
+                run <plugin> [phases]    Run plugin (phases: setup,run,cleanup)
+                                         Options: --docker --report-dir <path>
+                device list              List built-in simulated device profiles
+                device use <profile>     Switch current simulated device profile
+                device current           Show active profile details
+                sim <target>             Show simulated data (device|contacts|sensors|storage)
+                echo start|stop|send     Control local echo server
+                analyze manifest <path>  Run AndroidManifest static analyzer
+                logparse <file>          Parse suspicious log lines
+                report list|latest       Show generated report files
+                exit | quit              Exit console
+                """
+            ).strip()
+        )
 
-            Run a plugin discovered under `mercury_plugins/` in the sandbox. Phases
-            is a comma-separated list containing any of: setup, run, cleanup
+    def do_clear(self, argv: List[str]) -> None:
+        clear_terminal(force=True)
 
-            Examples:
-              run example_simulator run
-              run android-sim-template setup,run,cleanup
-            """
-        ))
+    def do_banner(self, argv: List[str]) -> None:
+        display_banner(theme=self.theme)
 
-    # Banner
-    def do_banner(self, argv: List[str]):
-        """banner [n] - Show a random or numbered banner (1-3)."""
-        n = None
-        if argv:
-            try:
-                idx = int(argv[0]) - 1
-                if idx in (0, 1, 2):
-                    # map to the existing themes by name
-                    themes = [None, None, None]
-                    # display_banner accepts theme name or None; we'll call display_banner multiple times
-                    # but we just call it here to keep behavior simple
-                    pass
-            except Exception:
-                pass
-        display_banner()
-
-    # Modules
-    def do_modules(self, argv: List[str]):
-        """modules - list discovered plugins/templates"""
-        self.plugins = discover_plugins()
+    def do_modules(self, argv: List[str]) -> None:
+        self._refresh_plugins()
         if not self.plugins:
-            print(color_text("No plugins found under mercury_plugins/", "yellow"))
+            print_status("warn", "No runnable plugins found under mercury_plugins/.", theme=self.theme)
             return
-        print(color_text("Discovered plugins:", "cyan"))
-        for p in self.plugins:
-            m = p.get("manifest", {})
-            print(f" - {m.get('name')} : {m.get('description', '')}")
+        print(color_text("Discovered plugins:", "primary", bold=True, theme=self.theme))
+        for plugin in self.plugins:
+            manifest = plugin.get("manifest", {})
+            name = manifest.get("name", plugin.get("name"))
+            description = manifest.get("description", "")
+            print(f" - {name}: {description}")
 
-    def do_info(self, argv: List[str]):
-        """info <plugin> - show manifest and responsible use info for a plugin"""
+    def do_info(self, argv: List[str]) -> None:
         if not argv:
             print("Usage: info <plugin_name>")
             return
-        name = argv[0]
-        found = next((p for p in self.plugins if p['name'] == name), None)
-        if not found:
-            print(color_text("Plugin not found", "red"))
+        plugin = self._find_plugin(argv[0])
+        if not plugin:
+            print_status("error", "Plugin not found.", theme=self.theme)
             return
-        m = found.get('manifest', {})
-        print(color_text(f"Name: {m.get('name')}", "cyan"))
-        print(f"Version: {m.get('version')}")
-        print(f"Description: {m.get('description')}")
-        print(color_text("Responsible use:", "yellow"))
-        print(textwrap.indent(str(m.get('responsible_use', 'N/A')), '  '))
+        manifest = plugin.get("manifest", {})
+        print(color_text(f"Name: {manifest.get('name')}", "primary", bold=True, theme=self.theme))
+        print(f"Version: {manifest.get('version')}")
+        print(f"Author: {manifest.get('author')}")
+        print(f"Network policy: {manifest.get('network_policy')}")
+        print(f"Description: {manifest.get('description')}")
+        print("Responsible use:")
+        print(textwrap.indent(str(manifest.get("responsible_use", "N/A")), "  "))
 
-    def do_run(self, argv: List[str]):
-        """run <plugin> [phases] - run plugin lifecycle phases in sandbox (setup, run, cleanup)"""
+    def do_run(self, argv: List[str]) -> None:
         if not argv:
-            print("Usage: run <plugin_name> [phases]")
+            print("Usage: run <plugin_name> [phases] [--docker] [--report-dir <path>]")
             return
-        name = argv[0]
-        phases = []
-        if len(argv) > 1:
-            phases = argv[1].split(',')
-        found = next((p for p in self.plugins if p['name'] == name), None)
-        if not found:
-            print(color_text("Plugin not found", "red"))
-            return
-        manifest = found.get('manifest', {})
-        if not validate_manifest_local_only(manifest):
-            print(color_text("Plugin rejected: manifest must declare network_policy: local-only", "red"))
-            return
-        argmap = {'setup': '--setup', 'run': '--run', 'cleanup': '--cleanup'}
-        args = [argmap[p] for p in phases if p in argmap]
-        if not args:
-            args = ['--run']
-        print(color_text(f"Running {name} with args: {args}", "cyan"))
-        res = run_plugin_subprocess(found['path'], args=args, timeout=20)
-        print(color_text("--- stdout ---", "green"))
-        print(res.get('stdout', ''))
-        if res.get('stderr'):
-            print(color_text("--- stderr ---", "red"))
-            print(res.get('stderr'))
 
-    # Simulated data
-    def do_sim(self, argv: List[str]):
-        """sim <device|contacts|sensors|storage> - show simulated data for demos"""
+        plugin_name = argv[0]
+        plugin = self._find_plugin(plugin_name)
+        if not plugin:
+            print_status("error", "Plugin not found.", theme=self.theme)
+            return
+
+        manifest = plugin.get("manifest", {})
+        if not validate_manifest_local_only(manifest):
+            print_status("error", "Plugin rejected: requires network_policy=local-only.", theme=self.theme)
+            return
+
+        phase_spec = "run"
+        use_docker = False
+        report_dir = self.report_dir
+        index = 1
+        while index < len(argv):
+            token = argv[index]
+            if token == "--docker":
+                use_docker = True
+            elif token == "--report-dir":
+                if index + 1 >= len(argv):
+                    print("Usage error: --report-dir requires a path")
+                    return
+                report_dir = argv[index + 1]
+                index += 1
+            elif token.startswith("--report-dir="):
+                report_dir = token.split("=", 1)[1]
+            elif token.startswith("--"):
+                print_status("warn", f"Ignoring unknown option: {token}", theme=self.theme)
+            else:
+                phase_spec = token
+            index += 1
+
+        phase_tokens = [p.strip().lower() for p in phase_spec.split(",") if p.strip()]
+        arg_map = {"setup": "--setup", "run": "--run", "cleanup": "--cleanup"}
+        lifecycle_args = [arg_map[p] for p in phase_tokens if p in arg_map]
+        if not lifecycle_args:
+            lifecycle_args = ["--run"]
+            phase_tokens = ["run"]
+
+        runner = "docker" if use_docker else "subprocess"
+        print_status("info", f"Running '{plugin_name}' via {runner} with {phase_tokens}.", theme=self.theme)
+        if use_docker:
+            result = run_plugin_docker(plugin["path"], args=lifecycle_args, timeout=40)
+        else:
+            result = run_plugin_subprocess(plugin["path"], args=lifecycle_args, timeout=25)
+
+        print(color_text("--- stdout ---", "success", theme=self.theme))
+        print(result.get("stdout", "").rstrip())
+        stderr = result.get("stderr", "").rstrip()
+        if stderr:
+            print(color_text("--- stderr ---", "error", theme=self.theme))
+            print(stderr)
+
+        report = write_run_report(
+            report_dir=report_dir,
+            plugin_name=plugin_name,
+            manifest=manifest,
+            phases=phase_tokens,
+            execution=result,
+            runner=runner,
+        )
+        print_status("ok", f"JSON report: {report['json_path']}", theme=self.theme)
+        print_status("ok", f"Markdown report: {report['md_path']}", theme=self.theme)
+
+        if result.get("returncode") != 0:
+            print_status(
+                "warn",
+                f"Plugin exited with code {result.get('returncode')}. Review report output.",
+                theme=self.theme,
+            )
+
+    def do_device(self, argv: List[str]) -> None:
+        action = argv[0].lower() if argv else "current"
+        if action == "list":
+            print(color_text("Available simulated device profiles:", "primary", bold=True, theme=self.theme))
+            for profile in self.device.available_profiles():
+                print(f" - {profile.key}: {profile.label} [{profile.platform}]")
+            return
+        if action == "use":
+            if len(argv) < 2:
+                print("Usage: device use <profile_key>")
+                return
+            try:
+                self.device.switch_profile(argv[1])
+            except ValueError as exc:
+                print_status("error", str(exc), theme=self.theme)
+                return
+            print_status("ok", f"Active device profile set to {self.device.profile_key}.", theme=self.theme)
+            return
+        if action == "current":
+            print(self.device.device_info())
+            return
+        print("Usage: device [list|use <profile_key>|current]")
+
+    def do_sim(self, argv: List[str]) -> None:
         if not argv:
             print("Usage: sim <device|contacts|sensors|storage>")
             return
-        what = argv[0]
-        if what == 'device':
+        target = argv[0].lower()
+        if target == "device":
             print(self.device.device_info())
-        elif what == 'contacts':
-            for c in sample_contacts():
-                print(f"- {c.name} | {c.phone} | {c.email}")
-        elif what == 'sensors':
+        elif target == "contacts":
+            for contact in sample_contacts():
+                print(f"- {contact.name} | {contact.phone} | {contact.email}")
+        elif target == "sensors":
             print(sensor_readings())
-        elif what == 'storage':
-            for f in storage_listing():
-                print(f"- {f}")
+        elif target == "storage":
+            for entry in storage_listing():
+                print(f"- {entry}")
         else:
-            print("Unknown sim target")
+            print("Unknown simulated target.")
 
-    # Echo server controls
-    def do_echo(self, argv: List[str]):
-        """echo start|stop|send <message> - control local echo server for demos"""
+    def do_echo(self, argv: List[str]) -> None:
         if not argv:
             print("Usage: echo start|stop|send <message>")
             return
         cmd = argv[0]
-        if cmd == 'start':
+        if cmd == "start":
             if self.echo_server and self.echo_server._thread and self.echo_server._thread.is_alive():
-                print("Echo server already running")
-            else:
-                self.echo_server = EchoServer(host='127.0.0.1', port=8000)
-                self.echo_server.start()
-                print(color_text('Echo server started on 127.0.0.1:8000', 'green'))
-        elif cmd == 'stop':
-            if self.echo_server:
-                self.echo_server.stop()
-                self.echo_server = None
-                print('Echo server stopped')
-            else:
-                print('No running echo server')
-        elif cmd == 'send':
-            if len(argv) < 2:
-                print('Usage: echo send <message>')
+                print_status("warn", "Echo server already running.", theme=self.theme)
                 return
-            msg = ' '.join(argv[1:])
+            self.echo_server = EchoServer(host="127.0.0.1", port=8000)
+            self.echo_server.start()
+            print_status("ok", "Echo server started on 127.0.0.1:8000.", theme=self.theme)
+        elif cmd == "stop":
+            if not self.echo_server:
+                print_status("warn", "No running echo server.", theme=self.theme)
+                return
+            self.echo_server.stop()
+            self.echo_server = None
+            print_status("ok", "Echo server stopped.", theme=self.theme)
+        elif cmd == "send":
+            if len(argv) < 2:
+                print("Usage: echo send <message>")
+                return
+            message = " ".join(argv[1:])
             try:
-                from .benign_demo import echo_client_send
-                resp = echo_client_send(msg, host='127.0.0.1', port=8000)
-                print('Received:', resp)
-            except Exception as e:
-                print(color_text(f'Failed to send to echo server: {e}', 'red'))
+                response = echo_client_send(message, host="127.0.0.1", port=8000)
+                print(f"Received: {response}")
+            except Exception as exc:
+                print_status("error", f"Send failed: {exc}", theme=self.theme)
         else:
-            print('Unknown echo command')
+            print("Unknown echo command.")
 
-    # Static analysis & detection
-    def do_analyze(self, argv: List[str]):
-        """analyze manifest <path> - run static manifest analyzer (requires extracted AndroidManifest.xml)"""
-        if len(argv) < 2 or argv[0] != 'manifest':
-            print('Usage: analyze manifest <path_to_AndroidManifest.xml>')
+    def do_analyze(self, argv: List[str]) -> None:
+        if len(argv) != 2 or argv[0] != "manifest":
+            print("Usage: analyze manifest <path_to_AndroidManifest.xml>")
             return
         path = Path(argv[1])
         if not path.exists():
-            print('File not found:', path)
+            print(f"File not found: {path}")
             return
-        try:
-            from ..tools.apk_manifest_analyzer import analyze_manifest, pretty_print
-        except Exception:
-            # fallback import style
-            from tools.apk_manifest_analyzer import analyze_manifest, pretty_print
-        report = analyze_manifest(path)
-        pretty_print(report)
+        analyzer = importlib.import_module("tools.apk_manifest_analyzer")
+        report = analyzer.analyze_manifest(path)
+        analyzer.pretty_print(report)
 
-    def do_logparse(self, argv: List[str]):
-        """logparse <file> - run simple suspicious log parser and print matches"""
+    def do_logparse(self, argv: List[str]) -> None:
         if not argv:
-            print('Usage: logparse <file>')
+            print("Usage: logparse <file>")
             return
         path = Path(argv[0])
         if not path.exists():
-            print('File not found:', path)
+            print(f"File not found: {path}")
             return
-        text = path.read_text(encoding='utf-8', errors='replace')
-        # Import the log parser dynamically so the import resolves whether
-        # `detection` is a top-level package or available via different
-        # package layouts (avoids static analyzer false-positives).
-        import importlib
-        mod = None
-        for candidate in ("detection.log_parser", "mercury.detection.log_parser"):
-            try:
-                mod = importlib.import_module(candidate)
-                break
-            except Exception:
-                continue
-        if mod is None:
-            print(color_text('Log parser module not available', 'red'))
-            return
-        matches = getattr(mod, 'find_suspicious_lines')(text)
+        text = path.read_text(encoding="utf-8", errors="replace")
+        parser = importlib.import_module("detection.log_parser")
+        matches = parser.find_suspicious_lines(text)
         if not matches:
-            print(color_text('No suspicious lines found', 'green'))
+            print_status("ok", "No suspicious lines found.", theme=self.theme)
             return
-        print(color_text('Suspicious lines found:', 'yellow'))
-        for m in matches:
-            print(' -', m)
+        print_status("warn", "Suspicious lines:", theme=self.theme)
+        for match in matches:
+            print(f" - {match}")
 
-    def do_exit(self, argv: List[str]):
-        """exit - exit the console"""
-        print(color_text('Goodbye — stay ethical.', 'cyan'))
+    def do_report(self, argv: List[str]) -> None:
+        action = argv[0].lower() if argv else "list"
+        reports = list_reports(self.report_dir, limit=30)
+        if action == "list":
+            if not reports:
+                print_status("warn", f"No reports found in '{self.report_dir}'.", theme=self.theme)
+                return
+            print(color_text("Recent reports:", "primary", bold=True, theme=self.theme))
+            for path in reports:
+                print(f" - {path}")
+            return
+        if action == "latest":
+            if not reports:
+                print_status("warn", f"No reports found in '{self.report_dir}'.", theme=self.theme)
+                return
+            print(reports[0])
+            return
+        print("Usage: report [list|latest]")
+
+    def do_exit(self, argv: List[str]) -> None:
         if self.echo_server:
             try:
                 self.echo_server.stop()
@@ -340,29 +385,36 @@ class MercuryConsole:
                 pass
         raise SystemExit(0)
 
-    def do_quit(self, argv: List[str]):
+    def do_quit(self, argv: List[str]) -> None:
         self.do_exit(argv)
 
 
-def start_console(non_interactive: bool = False, commands: Optional[List[str]] = None):
-    """Start the Mercury console.
-
-    If `non_interactive` is True, `commands` (list of lines) will be executed
-    sequentially and the function will return without entering the interactive
-    REPL. This supports `run.py -c` and `-s` script mode.
-    """
-    c = MercuryConsole()
+def start_console(
+    *,
+    non_interactive: bool = False,
+    commands: Optional[List[str]] = None,
+    theme: str = "mercury",
+    report_dir: str = "reports",
+    clear_on_start: bool = False,
+    device_profile: str = "android_pixel_lab",
+) -> int:
+    """Start the Mercury console in interactive or scripted mode."""
+    console = MercuryConsole(
+        theme=theme,
+        report_dir=report_dir,
+        clear_on_start=clear_on_start,
+        device_profile=device_profile,
+    )
     if non_interactive:
-        commands = commands or []
-        for line in commands:
+        for line in commands or []:
             try:
-                c.execute_line(line)
+                console.execute_line(line)
             except SystemExit:
-                # allow scripts to exit early
                 break
-        return
-    c.start()
+        return 0
+    console.start()
+    return 0
 
 
-if __name__ == '__main__':
-    start_console()
+if __name__ == "__main__":
+    raise SystemExit(start_console())

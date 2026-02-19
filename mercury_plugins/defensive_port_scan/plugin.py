@@ -1,4 +1,4 @@
-from mercury.plugin_api import BasePlugin
+from mercury.plugin_api import BasePlugin, dispatch_lifecycle
 from mercury.defensive_tools import local_port_scan
 import argparse
 
@@ -29,9 +29,4 @@ class DefensivePortScan(BasePlugin):
 if __name__ == '__main__':
     import sys
     p = DefensivePortScan(sys.argv[1:])
-    if '--setup' in sys.argv:
-        p.setup()
-    if '--run' in sys.argv:
-        p.run()
-    if '--cleanup' in sys.argv:
-        p.cleanup()
+    raise SystemExit(dispatch_lifecycle(p))

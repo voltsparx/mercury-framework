@@ -1,9 +1,10 @@
 {
   "name": "forensic-sim-template",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Forensic simulation template (benign demo).",
   "author": "yourname",
   "network_policy": "local-only",
   "responsible_use": "Use for forensic emulation and detection training only.",
   "usage": "run forensic-sim-template run"
 }
+

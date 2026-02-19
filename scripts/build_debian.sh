@@ -5,7 +5,7 @@
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="$ROOT_DIR/dist"
-VERSION="${1:-0.1.0}"
+VERSION="${1:-0.3.0}"
 PKG_NAME="mercury-framework"
 ARCH="all"
 
@@ -44,3 +44,4 @@ fakeroot dpkg-deb --build "$STAGING" "$OUT_DEB"
 rm -rf "$STAGING"
 
 echo "Debian package built: $OUT_DEB"
+

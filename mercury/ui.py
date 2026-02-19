@@ -1,83 +1,100 @@
-"""Simple UI helpers for Mercury console (banners, color, prompt)
-
-This module provides minimal utilities used by the console: `display_banner`,
-`color_text`, and `prompt`. It's intentionally small and dependency-free.
-"""
+"""Terminal UI helpers for banners, status lines, and prompts."""
 from __future__ import annotations
 
 import random
-import sys
-from typing import Optional
+from typing import Iterable, Optional
+
+from .colors import style
+
 
 BANNERS = [
     r"""
-+==========================================+
-|    __  ___                               |
-|   /  |/  /__  ____________  _________  __|
-|  / /|_/ / _ \/ ___/ ___/ / / / ___/ / / /|
-| / /  / /  __/ /  / /__/ /_/ / /  / /_/ / |
-|/_/  /_/\___/_/   \___/\__,_/_/   \__, /  |
-|                                 /____/   |
-+==========================================+
+ __  __                      __
+|  \/  | ___ _ __ ___ _   _ / _|_   _
+| |\/| |/ _ \ '__/ __| | | | |_| | | |
+| |  | |  __/ | | (__| |_| |  _| |_| |
+|_|  |_|\___|_|  \___|\__,_|_|  \__, |
+                                 |___/
 """,
     r"""
-___  ___                               
-|  \/  |                               
-| .  . | ___ _ __ ___ _   _ _ __ _   _ 
-| |\/| |/ _ \ '__/ __| | | | '__| | | |
-| |  | |  __/ | | (__| |_| | |  | |_| |
-\_|  |_/\___|_|  \___|\__,_|_|   \__, |
-                                  __/ |
-                                 |___/ 
++----------------------------------------------+
+|   __  __                                     |
+|  |  \/  | ___ _ __ ___ _   _ _ __ _   _      |
+|  | |\/| |/ _ \ '__/ __| | | | '__| | | |     |
+|  | |  | |  __/ | | (__| |_| | |  | |_| |     |
+|  |_|  |_|\___|_|  \___|\__,_|_|   \__, |     |
+|                                   |___/      |
++----------------------------------------------+
 """,
     r"""
-+==========================================+
-|    __  ___                               |
-|   /  |/  /__  ____________  _________  __|
-|  / /|_/ / _ \/ ___/ ___/ / / / ___/ / / /|
-| / /  / /  __/ /  / /__/ /_/ / /  / /_/ / |
-|/_/  /_/\___/_/   \___/\__,_/_/   \__, /  |
-|                                 /____/   |
-+==========================================+
+ __  __                                 _
+|  \/  | ___ _ __ ___ _   _ _ __ _   _| |
+| |\/| |/ _ \ '__/ __| | | | '__| | | | |
+| |  | |  __/ | | (__| |_| | |  | |_| |_|
+|_|  |_|\___|_|  \___|\__,_|_|   \__, (_)
+                                  |___/
 """,
 ]
 
-HACKER_QUOTES = [
+
+QUOTES = [
     "Learn, build, defend.",
-    "Security is a process, not a product.",
-    "Test in isolated labs."
+    "Safe simulations beat risky shortcuts.",
+    "Isolate first, automate second.",
 ]
 
-COLOR_MAP = {
-    'red': '\x1b[31m',
-    'green': '\x1b[32m',
-    'yellow': '\x1b[33m',
-    'blue': '\x1b[34m',
-    'magenta': '\x1b[35m',
-    'cyan': '\x1b[36m',
-    'reset': '\x1b[0m',
-}
+
+def clear_terminal(*, force: bool = False) -> None:
+    """Clear terminal using ANSI escape sequences."""
+    # Always emit when force=True; in CI/non-interactive shells this is still safe.
+    if force:
+        print("\x1b[2J\x1b[H", end="")
+        return
+    print("\x1b[2J\x1b[H", end="")
 
 
-def display_banner():
-    b = random.choice(BANNERS)
-    q = random.choice(HACKER_QUOTES)
-    print(b)
-    print(f"\n  {q}\n")
+def color_text(
+    text: str,
+    color: Optional[str] = None,
+    *,
+    bold: bool = False,
+    underline: bool = False,
+    theme: str = "mercury",
+) -> str:
+    return style(text, color=color, bold=bold, underline=underline, theme=theme)
 
 
-def color_text(text: str, color: Optional[str] = None) -> str:
-    if not color:
-        return text
-    code = COLOR_MAP.get(color.lower(), '')
-    reset = COLOR_MAP.get('reset', '')
-    # If stdout is not a tty (e.g., redirected), avoid ANSI sequences
-    if not sys.stdout.isatty():
-        return text
-    return f"{code}{text}{reset}"
+def display_banner(*, theme: str = "mercury", index: int | None = None) -> None:
+    if index is None:
+        banner = random.choice(BANNERS)
+    else:
+        banner = BANNERS[index % len(BANNERS)]
+    quote = random.choice(QUOTES)
+    print(color_text(banner.rstrip("\n"), "accent", theme=theme))
+    print(color_text(f"  {quote}", "muted", theme=theme))
+    print()
 
 
-def prompt(msg: str = '') -> str:
+def print_status(level: str, message: str, *, theme: str = "mercury") -> None:
+    palette = {
+        "info": "info",
+        "ok": "success",
+        "warn": "warning",
+        "error": "error",
+    }
+    label = level.upper()
+    color = palette.get(level, "primary")
+    print(color_text(f"[{label}] ", color, theme=theme) + message)
+
+
+def print_menu(title: str, options: Iterable[str], *, theme: str = "mercury") -> None:
+    print(color_text(title, "primary", bold=True, theme=theme))
+    for idx, line in enumerate(options, start=1):
+        print(color_text(f"  {idx}) ", "accent", theme=theme) + line)
+    print()
+
+
+def prompt(msg: str = "") -> str:
     try:
         return input(msg)
     except (KeyboardInterrupt, EOFError):
